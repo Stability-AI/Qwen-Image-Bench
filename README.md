@@ -1,7 +1,7 @@
 # Qwen-Image-Bench
 
 <p align="center">
-  <a href="TODO"><img src="https://img.shields.io/badge/Paper-arXiv-b31b1b?logo=arxiv" alt="Paper"></a>
+  <a href="http://arxiv.org/abs/2605.28091"><img src="https://img.shields.io/badge/Paper-arXiv-b31b1b?logo=arxiv" alt="Paper"></a>
   <a href="https://huggingface.co/datasets/Qwen/Qwen-Image-Bench"><img src="https://img.shields.io/badge/Dataset-HuggingFace-ffd21e?logo=huggingface" alt="Dataset"></a>
   <a href="https://huggingface.co/Qwen/Qwen-Image-Bench"><img src="https://img.shields.io/badge/Judge_Model-HuggingFace-ffd21e?logo=huggingface" alt="Model"></a>
   <a href="https://www.modelscope.cn/datasets/Qwen/Qwen-Image-Bench"><img src="https://img.shields.io/badge/Dataset-ModelScope-624aff?logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjIyIiBoZWlnaHQ9IjIyMiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNNzEuNTU2IDcyLjg4OGgzOC42Njd2MzguNjY3SDcxLjU1NnpNMTExLjU1NiAxMTIuODg4aDM4LjY2N3YzOC42NjdoLTM4LjY2N3pNNzEuNTU2IDExMi44ODhoMzguNjY3djM4LjY2N0g3MS41NTZ6IiBmaWxsPSIjNjI0QUZGIi8+PC9zdmc+" alt="ModelScope"></a>
@@ -187,11 +187,14 @@ For the complete dimension hierarchy and detailed analysis, see the [benchmark d
 If you find this benchmark useful, please cite our paper:
 
 ```bibtex
-@article{TODO,
-  title={TODO},
-  author={TODO},
-  journal={TODO},
-  year={TODO}
+@misc{li2026qwenimagebenchgenerationcreationtexttoimage,
+      title={Qwen-Image-Bench: From Generation to Creation in Text-to-Image Evaluation}, 
+      author={Niantong Li and Guangzheng Hu and Weixu Qiao and Ying Ba and Qichen Hong and Shijun Shen and Jinlin Wang and Fan Zhou and Jianye Kang and Xin Shang and Ziyi He and Wei Wang and Dalin Li and Jiahao Li and Jie Zhang and Kaiyuan Gao and Kun Yan and Lihan Jiang and Ningyuan Tang and Shengming Yin and Tianhe Wu and Xiao Xu and Xiaoyue Chen and Yuxiang Chen and Yan Shu and Yanran Zhang and Yilei Chen and Yixian Xu and Zekai Zhang and Zhendong Wang and Zihao Liu and Zikai Zhou and Hongzhu Shi and Yi Wang and Bing Zhao and Hu Wei and Lin Qu and Chenfei Wu},
+      year={2026},
+      eprint={2605.28091},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2605.28091}, 
 }
 ```
 
