@@ -15,7 +15,9 @@ compute_scores.py methodology and saved alongside the per-row output.
 import argparse
 import json
 import sys
+import time
 from collections import defaultdict
+from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
@@ -43,6 +45,17 @@ DIM_OUTPUT_MAP = {
     "Real-world Fidelity": "real_world_fidelity_judge_output",
     "Creative Generation": "creative_generation_judge_output",
 }
+
+
+@contextmanager
+def _timer(label, store=None):
+    """Measure wall time of a block, log it, and optionally record it in `store`."""
+    start = time.perf_counter()
+    yield
+    elapsed = time.perf_counter() - start
+    print(f"[TIMER] {label}: {elapsed:.2f}s")
+    if store is not None:
+        store[label] = elapsed
 
 
 def load_and_resize_image(path):
@@ -117,99 +130,105 @@ def _parse_output_to_scores(output_text, level1_dim):
     return fix_score_json(score_json, level1_dim)
 
 
-def _run_batch_inference(judge, args, input_df, metadata_df, desc):
+def _run_batch_inference(judge, args, input_df, metadata_df, desc, timings=None):
     """Batch inference over all rows and dimensions."""
     tasks = []
     task_meta = []  # (row_idx, level1_dim)
     skipped_rows = set()
     image_failures = 0
 
-    for row_idx, (_, row) in enumerate(input_df.iterrows()):
-        row_id = row["ID"]
-        prompt = row["prompt"]
-        image_path = row["image_path"]
+    with _timer("image load + task build", timings):
+        for row_idx, (_, row) in enumerate(input_df.iterrows()):
+            row_id = row["ID"]
+            prompt = row["prompt"]
+            image_path = row["image_path"]
 
-        meta_row = metadata_df[metadata_df["ID"] == row_id]
-        if meta_row.empty:
-            continue
-
-        dims_en = meta_row.iloc[0]["dims_en"]
-        dims_by_level1 = parse_dims_by_level1(dims_en)
-
-        try:
-            img = load_and_resize_image(image_path)
-        except Exception as e:
-            image_failures += 1
-            skipped_rows.add(row_idx)
-            print(f"WARNING: Failed to load image for ID={row_id}, path={image_path}: {e}")
-            continue
-
-        for level1_dim in dims_by_level1:
-            if level1_dim not in DIM_TO_CHECKLIST:
+            meta_row = metadata_df[metadata_df["ID"] == row_id]
+            if meta_row.empty:
                 continue
-            checklist = DIM_TO_CHECKLIST[level1_dim]
-            user_text = USER_PROMPT_TEMPLATE.format(
-                prompt=prompt,
-                level1_dim=level1_dim,
-                format_checklist=checklist,
-            )
-            tasks.append({
-                "system_prompt": SYSTEM_PROMPT,
-                "user_text": user_text,
-                "image": img,
-            })
-            task_meta.append((row_idx, level1_dim))
+
+            dims_en = meta_row.iloc[0]["dims_en"]
+            dims_by_level1 = parse_dims_by_level1(dims_en)
+
+            try:
+                img = load_and_resize_image(image_path)
+            except Exception as e:
+                image_failures += 1
+                skipped_rows.add(row_idx)
+                print(f"WARNING: Failed to load image for ID={row_id}, path={image_path}: {e}")
+                continue
+
+            for level1_dim in dims_by_level1:
+                if level1_dim not in DIM_TO_CHECKLIST:
+                    continue
+                checklist = DIM_TO_CHECKLIST[level1_dim]
+                user_text = USER_PROMPT_TEMPLATE.format(
+                    prompt=prompt,
+                    level1_dim=level1_dim,
+                    format_checklist=checklist,
+                )
+                tasks.append({
+                    "system_prompt": SYSTEM_PROMPT,
+                    "user_text": user_text,
+                    "image": img,
+                })
+                task_meta.append((row_idx, level1_dim))
 
     print(f"Total inference tasks: {len(tasks)}")
     all_outputs = []
     batch_size = args.batch_size
 
-    for i in tqdm(range(0, len(tasks), batch_size), desc=desc):
-        batch = tasks[i:i + batch_size]
-        outputs = judge.generate_batch(batch)
-        all_outputs.extend(outputs)
+    with _timer("batch inference", timings):
+        for i in tqdm(range(0, len(tasks), batch_size), desc=desc):
+            batch = tasks[i:i + batch_size]
+            outputs = judge.generate_batch(batch)
+            all_outputs.extend(outputs)
 
     row_dim_raw_scores = {}
     row_raw_outputs = {}
     parse_failures = 0
 
-    for (row_idx, level1_dim), output_text in zip(task_meta, all_outputs):
-        if row_idx not in row_dim_raw_scores:
-            row_dim_raw_scores[row_idx] = {}
-            row_raw_outputs[row_idx] = {}
-        row_raw_outputs[row_idx][level1_dim] = output_text
-        score_json = _parse_output_to_scores(output_text, level1_dim)
-        if score_json is None:
-            parse_failures += 1
-        row_dim_raw_scores[row_idx][level1_dim] = score_json
+    with _timer("parse + assemble results", timings):
+        for (row_idx, level1_dim), output_text in zip(task_meta, all_outputs):
+            if row_idx not in row_dim_raw_scores:
+                row_dim_raw_scores[row_idx] = {}
+                row_raw_outputs[row_idx] = {}
+            row_raw_outputs[row_idx][level1_dim] = output_text
+            score_json = _parse_output_to_scores(output_text, level1_dim)
+            if score_json is None:
+                parse_failures += 1
+            row_dim_raw_scores[row_idx][level1_dim] = score_json
 
-    results = []
-    all_dim_raw_scores = []
-    for row_idx, (_, row) in enumerate(input_df.iterrows()):
-        if row_idx in skipped_rows:
-            results.append(_empty_result(row))
-            all_dim_raw_scores.append({})
-            continue
-        dim_raw_scores = row_dim_raw_scores.get(row_idx, {})
-        dim_raw_outputs = row_raw_outputs.get(row_idx, {})
-        results.append(_build_row_result(row, dim_raw_scores, dim_raw_outputs))
-        all_dim_raw_scores.append(dim_raw_scores)
+        results = []
+        all_dim_raw_scores = []
+        for row_idx, (_, row) in enumerate(input_df.iterrows()):
+            if row_idx in skipped_rows:
+                results.append(_empty_result(row))
+                all_dim_raw_scores.append({})
+                continue
+            dim_raw_scores = row_dim_raw_scores.get(row_idx, {})
+            dim_raw_outputs = row_raw_outputs.get(row_idx, {})
+            results.append(_build_row_result(row, dim_raw_scores, dim_raw_outputs))
+            all_dim_raw_scores.append(dim_raw_scores)
 
     return results, parse_failures, all_dim_raw_scores, image_failures
 
 
-def run_ms_swift_inference(args, input_df, metadata_df):
+def run_ms_swift_inference(args, input_df, metadata_df, timings=None):
     """Run inference using ms-swift PtEngine."""
     from backends.ms_swift_backend import MsSwiftJudge
 
     print(f"Loading model from: {args.model}")
-    judge = MsSwiftJudge(
-        model_path=args.model,
-        max_batch_size=args.max_batch_size,
-        max_new_tokens=args.max_new_tokens,
-    )
+    with _timer("model load", timings):
+        judge = MsSwiftJudge(
+            model_path=args.model,
+            max_batch_size=args.max_batch_size,
+            max_new_tokens=args.max_new_tokens,
+        )
     print("Model loaded successfully.")
-    return _run_batch_inference(judge, args, input_df, metadata_df, desc="Batch inference")
+    return _run_batch_inference(
+        judge, args, input_df, metadata_df, desc="Batch inference", timings=timings
+    )
 
 
 def _empty_result(row):
@@ -371,9 +390,13 @@ def main():
     args = parser.parse_args()
     args.batch_size = args.max_batch_size
 
+    timings = {}
+    wall_start = time.perf_counter()
+
     # Load input
     print(f"Loading input: {args.input}")
-    input_df = load_input_file(args.input)
+    with _timer("input load", timings):
+        input_df = load_input_file(args.input)
     required_cols = {"ID", "prompt", "image_path"}
     missing = required_cols - set(input_df.columns)
     if missing:
@@ -383,28 +406,45 @@ def main():
 
     # Load metadata
     print("Loading bench metadata...")
-    metadata_df = load_bench_metadata(
-        hf_bench_repo=args.hf_bench_repo,
-        local_metadata=args.local_metadata,
-    )
+    with _timer("metadata load", timings):
+        metadata_df = load_bench_metadata(
+            hf_bench_repo=args.hf_bench_repo,
+            local_metadata=args.local_metadata,
+        )
     print(f"Metadata: {len(metadata_df)} rows")
 
     # Run inference
-    results, parse_failures, all_dim_raw_scores, image_failures = run_ms_swift_inference(args, input_df, metadata_df)
+    with _timer("inference (total)", timings):
+        results, parse_failures, all_dim_raw_scores, image_failures = run_ms_swift_inference(
+            args, input_df, metadata_df, timings=timings
+        )
 
     # Save per-row JSONL
-    saved_path = save_output(results, args.input)
+    with _timer("save per-row output", timings):
+        saved_path = save_output(results, args.input)
     print(f"\nPer-row results saved to: {saved_path}")
     if image_failures:
         print(f"Skipped (broken images): {image_failures}")
     print(f"Parse failures: {parse_failures}")
 
     # Compute & save bench-level scores
-    bench = compute_bench_scores(all_dim_raw_scores)
-    json_path, xlsx_path = save_bench_scores(bench, args.input)
+    with _timer("compute bench scores", timings):
+        bench = compute_bench_scores(all_dim_raw_scores)
+    with _timer("save bench scores", timings):
+        json_path, xlsx_path = save_bench_scores(bench, args.input)
     print(f"Bench scores saved to: {json_path}")
     print(f"Bench scores saved to: {xlsx_path}")
     print_bench_scores(bench)
+
+    total_wall = time.perf_counter() - wall_start
+    print("\n" + "=" * 70)
+    print("TIMER SUMMARY")
+    print("=" * 70)
+    for label, elapsed in timings.items():
+        print(f"  [TIMER] {label:28s}: {elapsed:8.2f}s")
+    print("-" * 70)
+    print(f"  {'total wall time':28s}: {total_wall:8.2f}s")
+    print("=" * 70)
 
 
 if __name__ == "__main__":

@@ -88,7 +88,6 @@ CHECKLIST_L3_TO_L2 = {
         "Composition": "Composition", "Color Harmony": "Color Harmony",
         "Lighting & Atmosphere": "Lighting",
         "Anatomical Fidelity": "Anatomical Portraiture",
-        "Emotional Expression": "Emotional Expression",
         "Style Control": "Style Control",
     },
     "Alignment": {
@@ -99,8 +98,6 @@ CHECKLIST_L3_TO_L2 = {
         "Full-body Action": "Actions",
         "2D Space": "Layout", "3D Space": "Layout",
         "Composition Relationship": "Relations", "Difference/Similarity": "Relations",
-        "Containment": "Relations",
-        "Real-world Scene": "Scene", "Virtual Scene": "Scene",
     },
     "Real-world Fidelity": {
         "Social Bias": "Fairness", "Cultural Fairness": "Fairness",
@@ -115,14 +112,7 @@ CHECKLIST_L3_TO_L2 = {
         "Feature Matching": "Feature Matching",
         "Logical Resolution": "Logical Resolution",
         "Text Accuracy": "Text Rendering", "Text Layout": "Text Rendering",
-        "Font": "Text Rendering", "Cross-lingual Generation": "Text Rendering",
-        "Graphic Design": "Design Applications", "Product Design": "Design Applications",
-        "Spatial Design": "Design Applications", "Fashion Styling": "Design Applications",
-        "Game Design": "Design Applications", "Art Design": "Design Applications",
-        "Cinematic Style": "Visual Storytelling", "Camera / Lens Style": "Visual Storytelling",
-        "Storyboard Creation": "Visual Storytelling", "Shot Sizes": "Visual Storytelling",
-        "Composition": "Visual Storytelling", "Angles": "Visual Storytelling",
-        "Comic Creation": "Visual Storytelling",
+        "Font": "Text Rendering",
     },
 }
 

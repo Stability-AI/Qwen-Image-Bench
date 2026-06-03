@@ -19,8 +19,6 @@ AESTHETICS_CHECKLIST = """## Composition
 - Lighting & Atmosphere: Does the lighting and shadow atmosphere of the image (such as contrast between light and dark, and the overall lighting atmosphere) match the scene setting of the prompt?
 ## Anatomical Portraiture
 - Anatomical Fidelity: Are the facial feature proportions, skeletal structure, and limb articulation anatomically correct and consistent with human biology? Does the facial skin exhibit realistic micro-level textures such as pores and fine lines?
-## Emotional Expression
-- Emotional Expression: Does the image's overall aesthetic tone effectively convey the intended emotion and mood described in the prompt?
 ## Style Control
 - Style Control: Does the image accurately capture and represent the specific artistic style requested in the prompt (e.g., Van Gogh's brushwork, Cyberpunk aesthetic)?"""
 
@@ -40,11 +38,7 @@ ALIGNMENT_CHECKLIST = """## Attributes
 - 3D Space: Does the layout, occlusion, and relative position of objects in 3D space conform to the prompt requirements or spatial logic?
 ## Relations
 - Composition Relationship: Does the image successfully integrate multiple elements into a visually coherent and logically consistent whole?
-- Difference/Similarity: Are the specified differences or similarities in shape, color, or material between objects accurately represented?
-- Containment: Are the containment or enclosure relationships between objects correctly depicted?
-## Scene
-- Real-world Scene: Does the scene type and environmental setting (e.g., office, forest, street) match the location described in the prompt?
-- Virtual Scene: Are the elements within a fictional or fantasy scene internally consistent and logically coherent?"""
+- Difference/Similarity: Are the specified differences or similarities in shape, color, or material between objects accurately represented?"""
 
 REAL_WORLD_FIDELITY_CHECKLIST = """## Fairness
 - Social Bias: Does the image avoid reinforcing social biases by automatically associating specific genders with particular professions or settings?
@@ -68,23 +62,7 @@ CREATIVE_GENERATION_CHECKLIST = """## Imagination
 ## Text Rendering
 - Text Accuracy: If the image contains text, is the text clear, legible, and free from garbled characters, misspellings, or typographical errors?
 - Text Layout: Is the text layout (e.g., centering, alignment, line spacing, margins) in the image visually appealing and professionally structured?
-- Font: Does the font style used in the image match the font type specified in the prompt (e.g., SimSun, Heiti, handwritten, serif)?
-- Cross-lingual Generation: Does the image correctly follow the translation instructions in the prompt, producing accurate text in the target language?
-## Design Applications
-- Graphic Design: Does the graphic design (e.g., advertisement, poster) exhibit a clear information hierarchy, effective visual guidance, and professional layout?
-- Product Design: Does the product design in the image demonstrate reasonable industrial design logic (e.g., ergonomic grip, logical interface placement, structural integrity)?
-- Spatial Design: Does the interior or architectural space conform to the principles of perspective, proportion, and building design standards?
-- Fashion Styling: Does the clothing cut and silhouette match the style described in the prompt (e.g., Hanfu, cyberpunk, haute couture)? Does the makeup style (e.g., smoky eyes, nude makeup, theatrical look) suit the occasion and character setting?
-- Game Design: Do the game props and UI elements have practical in-game usability (e.g., icon recognizability, interactive affordances, clear feedback cues)?
-- Art Design: Does the image successfully demonstrate the specific artistic design style required by the prompt (e.g., unique brushstrokes, distinctive color scheme, coherent artistic language)?
-## Visual Storytelling
-- Cinematic Style: Does the image reproduce the signature visual language of the specific director referenced in the prompt (e.g., Wes Anderson's symmetrical composition, Wong Kar-wai's warm color palette)?
-- Camera / Lens Style: Does the image reflect the characteristic imaging effects of the specific photographic equipment or lens referenced in the prompt (e.g., film grain, bokeh, digital sharpening)?
-- Storyboard Creation: Does the image's scene composition follow the panel layout requirements outlined in the prompt (e.g., three-panel, four-panel, split-screen)?
-- Shot Sizes: Does the image meet the framing and shot size requirements specified in the prompt (e.g., close-up, medium shot, wide shot)?
-- Composition: Does the image follow the specific composition rules required by the prompt (e.g., rule of thirds, golden ratio, leading lines)?
-- Angles: Does the camera angle comply with the prompt's specification (e.g., bird's-eye view, low angle, Dutch angle)?
-- Comic Creation: Does the image conform to the comic style required by the prompt (e.g., American comics, Japanese manga, European BD)?"""
+- Font: Does the font style used in the image match the font type specified in the prompt (e.g., SimSun, Heiti, handwritten, serif)?"""
 
 
 DIM_TO_CHECKLIST = {
@@ -137,9 +115,9 @@ def parse_dims_by_level1(dims_en_str):
     Output: {"Quality": [("Realism", "Physical Logic")], "Aesthetics": [("Color Harmony", "Color Harmony")]}
     """
     result = defaultdict(list)
-    parts = [p.strip() for p in dims_en_str.split(';')]
+    parts = [p.strip() for p in dims_en_str.split(";")]
     for p in parts:
-        levels = [l.strip() for l in p.split('/')]
+        levels = [l.strip() for l in p.split("/")]
         if len(levels) >= 3:
             result[levels[0]].append((levels[1], levels[2]))
         elif len(levels) == 2:
