@@ -176,11 +176,16 @@ def _run_batch_inference(judge, args, input_df, metadata_df, desc, timings=None)
 
     print(f"Total inference tasks: {len(tasks)}")
     all_outputs = []
-    batch_size = args.batch_size
+    # vLLM does its own continuous batching, so submit everything in one call and
+    # let max_num_seqs bound concurrency. PtEngine uses static batches.
+    if args.backend == "vllm":
+        chunk_size = max(len(tasks), 1)
+    else:
+        chunk_size = args.batch_size
 
     with _timer("batch inference", timings):
-        for i in tqdm(range(0, len(tasks), batch_size), desc=desc):
-            batch = tasks[i:i + batch_size]
+        for i in tqdm(range(0, len(tasks), chunk_size), desc=desc):
+            batch = tasks[i:i + chunk_size]
             outputs = judge.generate_batch(batch)
             all_outputs.extend(outputs)
 
@@ -214,17 +219,35 @@ def _run_batch_inference(judge, args, input_df, metadata_df, desc, timings=None)
     return results, parse_failures, all_dim_raw_scores, image_failures
 
 
-def run_ms_swift_inference(args, input_df, metadata_df, timings=None):
-    """Run inference using ms-swift PtEngine."""
-    from backends.ms_swift_backend import MsSwiftJudge
-
-    print(f"Loading model from: {args.model}")
+def _build_judge(args, timings=None):
+    """Construct the inference backend selected by --backend."""
     with _timer("model load", timings):
-        judge = MsSwiftJudge(
+        if args.backend == "vllm":
+            from backends.vllm_backend import VllmJudge
+
+            print(f"Loading model from: {args.model} (backend=vllm)")
+            return VllmJudge(
+                model_path=args.model,
+                max_new_tokens=args.max_new_tokens,
+                max_num_seqs=args.max_num_seqs,
+                gpu_memory_utilization=args.gpu_memory_utilization,
+                tensor_parallel_size=args.tensor_parallel_size,
+                max_model_len=args.max_model_len,
+            )
+
+        from backends.ms_swift_backend import MsSwiftJudge
+
+        print(f"Loading model from: {args.model} (backend=pt)")
+        return MsSwiftJudge(
             model_path=args.model,
             max_batch_size=args.max_batch_size,
             max_new_tokens=args.max_new_tokens,
         )
+
+
+def run_inference(args, input_df, metadata_df, timings=None):
+    """Run inference using the selected backend (vLLM or ms-swift PtEngine)."""
+    judge = _build_judge(args, timings=timings)
     print("Model loaded successfully.")
     return _run_batch_inference(
         judge, args, input_df, metadata_df, desc="Batch inference", timings=timings
@@ -383,9 +406,21 @@ def main():
     parser.add_argument("--model", required=True, help="HuggingFace model ID or local model path")
     parser.add_argument("--hf-bench-repo", default=None, help="HF dataset repo for bench metadata")
     parser.add_argument("--local-metadata", default=None, help="Local metadata file path (skip HF download)")
+    parser.add_argument("--backend", choices=["pt", "vllm"], default="vllm",
+                        help="Inference backend: 'vllm' (continuous batching, default) or "
+                             "'pt' (ms-swift PtEngine / HF static batching).")
     parser.add_argument("--max-batch-size", type=int, default=24,
-                        help="ms-swift PtEngine max_batch_size (default: 24)")
+                        help="ms-swift PtEngine max_batch_size (pt backend only; default: 24)")
     parser.add_argument("--max-new-tokens", type=int, default=4096)
+    # vLLM-only knobs (ignored by the pt backend).
+    parser.add_argument("--max-num-seqs", type=int, default=256,
+                        help="vLLM max concurrent sequences (default: 256)")
+    parser.add_argument("--gpu-memory-utilization", type=float, default=0.9,
+                        help="vLLM GPU memory fraction (default: 0.9)")
+    parser.add_argument("--tensor-parallel-size", type=int, default=1,
+                        help="vLLM tensor parallel size / GPUs (default: 1)")
+    parser.add_argument("--max-model-len", type=int, default=None,
+                        help="vLLM max model context length (default: model config)")
 
     args = parser.parse_args()
     args.batch_size = args.max_batch_size
@@ -415,7 +450,7 @@ def main():
 
     # Run inference
     with _timer("inference (total)", timings):
-        results, parse_failures, all_dim_raw_scores, image_failures = run_ms_swift_inference(
+        results, parse_failures, all_dim_raw_scores, image_failures = run_inference(
             args, input_df, metadata_df, timings=timings
         )
 

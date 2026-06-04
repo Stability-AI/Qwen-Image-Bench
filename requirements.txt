@@ -11,3 +11,7 @@ transformers==5.8.1
 # torch==2.12.0
 
 ms-swift==4.2.1
+
+# vLLM backend (judge.py --backend vllm, the default). Pin a version compatible
+# with the ms-swift / transformers pins above when building the judge venv.
+vllm

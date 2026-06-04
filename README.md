@@ -90,10 +90,17 @@ python judge.py \
 |----------|---------|-------------|
 | `--input` | *(required)* | Input CSV/JSON/JSONL with `ID`, `prompt`, `image_path` |
 | `--model` | *(required)* | HuggingFace model ID or local path |
+| `--backend` | `vllm` | Inference backend: `vllm` (continuous batching, fast) or `pt` (ms-swift `PtEngine` / HF static batching) |
 | `--hf-bench-repo` | — | HF dataset repo for bench metadata |
 | `--local-metadata` | — | Local metadata file path (overrides default) |
-| `--max-batch-size` | 24 | ms-swift `PtEngine` max_batch_size |
+| `--max-batch-size` | 24 | ms-swift `PtEngine` max_batch_size (`pt` backend only) |
 | `--max-new-tokens` | 4096 | Max generation tokens |
+| `--max-num-seqs` | 256 | vLLM max concurrent sequences (`vllm` backend) |
+| `--gpu-memory-utilization` | 0.9 | vLLM GPU memory fraction (`vllm` backend) |
+| `--tensor-parallel-size` | 1 | vLLM tensor parallel size / GPUs (`vllm` backend) |
+| `--max-model-len` | — | vLLM max context length (`vllm` backend; default: model config) |
+
+> The default `vllm` backend runs the judge with continuous batching + PagedAttention for substantially higher throughput on long, variable-length (thinking-mode) generations. It requires `vllm` in the venv (see `requirements.txt`). Use `--backend pt` to fall back to the original ms-swift PtEngine path.
 
 #### Output Files
 
